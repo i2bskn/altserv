@@ -2,13 +2,12 @@ package main
 
 import (
 	"io"
-	"log"
 	"net/http"
 	"strings"
 )
 
 type AppHandler struct {
-	logger *log.Logger
+	Config *Config
 }
 
 func (h *AppHandler) RequestLog(r *http.Request) {
@@ -17,16 +16,17 @@ func (h *AppHandler) RequestLog(r *http.Request) {
 		r.URL.Path,
 	}
 
-	h.logger.Println(strings.Join(log_info, " "))
+	h.Config.Logger.Println(strings.Join(log_info, " "))
 }
 
 func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.RequestLog(r)
-	io.WriteString(w, "example")
+	asset, _ := h.Config.AssetPath(r.URL.Path)
+	io.WriteString(w, asset)
 }
 
-func newAppHandler(name string) *AppHandler {
+func newAppHandler(config *Config) *AppHandler {
 	return &AppHandler{
-		logger: generateLogger(name),
+		Config: config,
 	}
 }
