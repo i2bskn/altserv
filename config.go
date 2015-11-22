@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"path"
@@ -10,6 +9,7 @@ import (
 
 const AppName = "AltServ"
 const Index = "index.html"
+const EnvDocRoot = "AS_DROOT"
 
 type Config struct {
 	DocumentRoot string
@@ -23,7 +23,6 @@ func (c *Config) AssetPath(uri string) (asset string, err error) {
 	asset_info, err = os.Stat(asset)
 
 	if err != nil {
-		fmt.Println(err)
 		return asset, err
 	}
 
@@ -31,7 +30,6 @@ func (c *Config) AssetPath(uri string) (asset string, err error) {
 		asset = path.Join(asset, c.Index)
 		asset_info, err = os.Stat(asset)
 		if err != nil {
-			fmt.Println(err)
 			return asset, err
 		}
 	}
@@ -47,9 +45,18 @@ func currentDir() string {
 	return current_path
 }
 
+func documentRoot() string {
+	path := os.Getenv(EnvDocRoot)
+	if len(path) == 0 {
+		fmt.Println("docroot from current dir")
+		return currentDir()
+	}
+	return path
+}
+
 func newConfig() *Config {
 	return &Config{
-		DocumentRoot: currentDir(),
+		DocumentRoot: documentRoot(),
 		Logger:       generateLogger(AppName),
 		Index:        Index,
 	}
