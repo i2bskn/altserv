@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -23,12 +25,14 @@ const ErrorTemplate = `
 `
 
 type AppHandler struct {
-	Config *Config
+	Config     *Config
+	Converters *AvailableConverters
 }
 
 func newAppHandler(config *Config) *AppHandler {
 	return &AppHandler{
-		Config: config,
+		Config:     config,
+		Converters: newAvailableConverters(),
 	}
 }
 
@@ -59,10 +63,49 @@ func (h *AppHandler) RenderError(w http.ResponseWriter, i *ErrorInfo) {
 	t.Execute(w, i)
 }
 
+func (h *AppHandler) AssetPath(uri string) (asset string, err error) {
+	var asset_info os.FileInfo
+	asset = filepath.Join(h.Config.DocumentRoot, uri)
+	asset_info, err = os.Stat(asset)
+
+	if err == nil {
+		if asset_info.IsDir() {
+			asset = filepath.Join(asset, h.Config.Index)
+			asset_info, err = os.Stat(asset)
+			if err == nil {
+				return asset, nil
+			}
+		} else {
+			return asset, nil
+		}
+	}
+
+	ext := filepath.Ext(asset)
+	if len(ext) == 0 {
+		ext = ".html"
+	}
+
+	candidates, exist := h.Converters.ConvertMap[ext]
+	if exist {
+		dir, file := filepath.Split(asset)
+		base := strings.TrimRight(file, ext)
+
+		for _, c := range candidates {
+			candidate := filepath.Join(dir, base+c)
+			asset_info, err = os.Stat(candidate)
+			if err == nil {
+				return candidate, nil
+			}
+		}
+	}
+
+	return "", errors.New("File not found: " + asset)
+}
+
 func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.RequestLog(r)
 
-	asset, err := h.Config.AssetPath(r.URL.Path)
+	asset, err := h.AssetPath(r.URL.Path)
 	if err != nil {
 		info := newErrorInfo(http.StatusNotFound, err.Error())
 		h.RenderError(w, info)
@@ -77,14 +120,15 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	bytes, err := ioutil.ReadAll(f)
+	asset_bytes, err := ioutil.ReadAll(f)
 	if err != nil {
 		info := newErrorInfo(http.StatusInternalServerError, err.Error())
 		h.RenderError(w, info)
 		return
 	}
 
-	mime_type := http.DetectContentType(bytes)
+	converted_bytes := h.Converters.Convert(asset_bytes, filepath.Ext(asset))
+	mime_type := http.DetectContentType(converted_bytes)
 	w.Header().Add("Content-Type", mime_type)
-	w.Write(bytes)
+	w.Write(converted_bytes)
 }
