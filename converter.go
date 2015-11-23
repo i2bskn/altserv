@@ -68,6 +68,12 @@ func (c HtmlConverter) ConvertedExt() string {
 	return ".html"
 }
 
+type CssConverter struct{}
+
+func (c CssConverter) ConvertedExt() string {
+	return ".css"
+}
+
 type JadeConverter struct {
 	HtmlConverter
 }

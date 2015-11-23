@@ -2,12 +2,14 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const ErrorTemplate = `
@@ -24,18 +26,6 @@ const ErrorTemplate = `
 </html>
 `
 
-type AppHandler struct {
-	Config     *Config
-	Converters *AvailableConverters
-}
-
-func newAppHandler(config *Config) *AppHandler {
-	return &AppHandler{
-		Config:     config,
-		Converters: newAvailableConverters(),
-	}
-}
-
 type ErrorInfo struct {
 	Code    int
 	Message string
@@ -48,22 +38,57 @@ func newErrorInfo(code int, message string) *ErrorInfo {
 	}
 }
 
-func (h *AppHandler) RequestLog(r *http.Request) {
+type ContentCache struct {
+	Content  []byte
+	CachedAt time.Time
+}
+
+func newContentCache(content []byte) *ContentCache {
+	return &ContentCache{
+		Content:  content,
+		CachedAt: time.Now(),
+	}
+}
+
+type AppHandler struct {
+	Config     *Config
+	Converters *AvailableConverters
+	Caches     map[string]*ContentCache
+}
+
+func newAppHandler(config *Config) *AppHandler {
+	return &AppHandler{
+		Config:     config,
+		Converters: newAvailableConverters(),
+		Caches:     make(map[string]*ContentCache),
+	}
+}
+
+func (h *AppHandler) AccessLog(r *http.Request, status int) {
 	log_info := []string{
 		r.Method,
 		r.URL.Path,
+		fmt.Sprint(status),
 	}
 
 	h.Config.Logger.Println(strings.Join(log_info, " "))
 }
 
-func (h *AppHandler) RenderError(w http.ResponseWriter, i *ErrorInfo) {
+func (h *AppHandler) RenderContent(w http.ResponseWriter, r *http.Request, content []byte) {
+	h.AccessLog(r, http.StatusOK)
+	mime_type := http.DetectContentType(content)
+	w.Header().Add("Content-Type", mime_type)
+	w.Write(content)
+}
+
+func (h *AppHandler) RenderError(w http.ResponseWriter, r *http.Request, i *ErrorInfo) {
+	h.AccessLog(r, i.Code)
 	t, _ := template.New("error").Parse(ErrorTemplate)
 	w.WriteHeader(i.Code)
 	t.Execute(w, i)
 }
 
-func (h *AppHandler) AssetPath(uri string) (asset string, err error) {
+func (h *AppHandler) AssetPath(uri string) (asset string, info os.FileInfo, err error) {
 	var asset_info os.FileInfo
 	asset = filepath.Join(h.Config.DocumentRoot, uri)
 	asset_info, err = os.Stat(asset)
@@ -73,10 +98,10 @@ func (h *AppHandler) AssetPath(uri string) (asset string, err error) {
 			asset = filepath.Join(asset, h.Config.Index)
 			asset_info, err = os.Stat(asset)
 			if err == nil {
-				return asset, nil
+				return asset, asset_info, nil
 			}
 		} else {
-			return asset, nil
+			return asset, asset_info, nil
 		}
 	}
 
@@ -94,41 +119,60 @@ func (h *AppHandler) AssetPath(uri string) (asset string, err error) {
 			candidate := filepath.Join(dir, base+c)
 			asset_info, err = os.Stat(candidate)
 			if err == nil {
-				return candidate, nil
+				return candidate, asset_info, nil
 			}
 		}
 	}
 
-	return "", errors.New("File not found: " + asset)
+	return "", nil, errors.New("File not found: " + asset)
+}
+
+func (h *AppHandler) Convert(src []byte, asset string) []byte {
+	ext := filepath.Ext(asset)
+	converted_src := h.Converters.Convert(src, ext)
+	h.Caches[asset] = newContentCache(converted_src)
+	return converted_src
+}
+
+func (h *AppHandler) ContentFromCache(asset string, info os.FileInfo) []byte {
+	content_cache, exist := h.Caches[asset]
+	if exist {
+		if content_cache.CachedAt.Sub(info.ModTime()) > 0 {
+			return content_cache.Content
+		}
+		delete(h.Caches, asset)
+	}
+	return nil
 }
 
 func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.RequestLog(r)
-
-	asset, err := h.AssetPath(r.URL.Path)
+	asset, info, err := h.AssetPath(r.URL.Path)
 	if err != nil {
 		info := newErrorInfo(http.StatusNotFound, err.Error())
-		h.RenderError(w, info)
+		h.RenderError(w, r, info)
+		return
+	}
+
+	content := h.ContentFromCache(asset, info)
+	if content != nil {
+		h.RenderContent(w, r, content)
 		return
 	}
 
 	f, err := os.OpenFile(asset, os.O_RDONLY, 0)
 	if err != nil {
 		info := newErrorInfo(http.StatusInternalServerError, err.Error())
-		h.RenderError(w, info)
+		h.RenderError(w, r, info)
 		return
 	}
 	defer f.Close()
 
-	asset_bytes, err := ioutil.ReadAll(f)
+	src, err := ioutil.ReadAll(f)
 	if err != nil {
 		info := newErrorInfo(http.StatusInternalServerError, err.Error())
-		h.RenderError(w, info)
+		h.RenderError(w, r, info)
 		return
 	}
 
-	converted_bytes := h.Converters.Convert(asset_bytes, filepath.Ext(asset))
-	mime_type := http.DetectContentType(converted_bytes)
-	w.Header().Add("Content-Type", mime_type)
-	w.Write(converted_bytes)
+	h.RenderContent(w, r, h.Convert(src, asset))
 }
