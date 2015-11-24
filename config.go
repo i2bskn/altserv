@@ -7,9 +7,9 @@ import (
 )
 
 const AppName = "AltServ"
-const Index = "index.html"
 const EnvDocRoot = "AS_DROOT"
-const TmpDir = "/tmp/altserv_temporary"
+const DefaultIndex = "index.html"
+const DefaultTmpDir = "/tmp/altserv_temporary"
 
 type Config struct {
 	DocumentRoot string
@@ -37,8 +37,8 @@ func documentRoot() string {
 func newConfig() *Config {
 	return &Config{
 		DocumentRoot: documentRoot(),
+		Index:        DefaultIndex,
+		TmpDir:       DefaultTmpDir,
 		Logger:       generateLogger(AppName),
-		TmpDir:       TmpDir,
-		Index:        Index,
 	}
 }
