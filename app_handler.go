@@ -88,10 +88,9 @@ func (h *AppHandler) RenderError(w http.ResponseWriter, r *http.Request, i *Erro
 	t.Execute(w, i)
 }
 
-func (h *AppHandler) AssetPath(uri string) (asset string, info os.FileInfo, err error) {
-	var asset_info os.FileInfo
-	asset = filepath.Join(h.Config.DocumentRoot, uri)
-	asset_info, err = os.Stat(asset)
+func (h *AppHandler) AssetPath(uri string) (string, os.FileInfo, error) {
+	asset := filepath.Join(h.Config.DocumentRoot, uri)
+	asset_info, err := os.Stat(asset)
 
 	if err == nil {
 		if asset_info.IsDir() {
@@ -110,8 +109,7 @@ func (h *AppHandler) AssetPath(uri string) (asset string, info os.FileInfo, err 
 		ext = ".html"
 	}
 
-	candidates, exist := h.Converters.ConvertMap[ext]
-	if exist {
+	if candidates, exist := h.Converters.ConvertMap[ext]; exist {
 		dir, file := filepath.Split(asset)
 		base := strings.TrimRight(file, ext)
 

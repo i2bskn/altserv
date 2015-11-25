@@ -18,20 +18,16 @@ type AvailableConverters struct {
 
 func newAvailableConverters() *AvailableConverters {
 	converters := allConverters()
-	for ext, c := range converters {
+	for from_ext, c := range converters {
 		if !c.IsAvailable() {
-			delete(converters, ext)
+			delete(converters, from_ext)
 		}
 	}
 
 	convert_map := make(map[string][]string)
-	for ext, c := range converters {
-		conv_ext := c.ConvertedExt()
-		_, exist := convert_map[conv_ext]
-		if !exist {
-			convert_map[conv_ext] = make([]string, 0, 0)
-		}
-		convert_map[conv_ext] = append(convert_map[conv_ext], ext)
+	for from_ext, c := range converters {
+		to_ext := c.ConvertedExt()
+		convert_map[to_ext] = append(convert_map[to_ext], from_ext)
 	}
 	return &AvailableConverters{
 		Converters: converters,
@@ -40,7 +36,7 @@ func newAvailableConverters() *AvailableConverters {
 }
 
 func allConverters() map[string]Converter {
-	var jade JadeConverter
+	jade := new(JadeConverter)
 	return map[string]Converter{
 		".jade": jade,
 	}
@@ -51,10 +47,8 @@ func (c *AvailableConverters) Convert(src []byte, t string) []byte {
 		return src
 	}
 
-	converter, exist := c.Converters[t]
-	if exist {
-		converted, err := converter.Convert(src)
-		if err == nil {
+	if converter, exist := c.Converters[t]; exist {
+		if converted, err := converter.Convert(src); err == nil {
 			return converted
 		}
 	}
@@ -92,14 +86,12 @@ func (c JadeConverter) Convert(src []byte) ([]byte, error) {
 
 	cmds := []*exec.Cmd{echo_src, jade}
 	for _, c := range cmds {
-		err := c.Start()
-		if err != nil {
+		if err := c.Start(); err != nil {
 			return nil, err
 		}
 	}
 	for _, c := range cmds {
-		err := c.Wait()
-		if err != nil {
+		if err := c.Wait(); err != nil {
 			return nil, err
 		}
 	}
