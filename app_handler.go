@@ -39,14 +39,16 @@ func newErrorInfo(code int, message string) *ErrorInfo {
 }
 
 type ContentCache struct {
-	Content  []byte
-	CachedAt time.Time
+	Content     []byte
+	ContentType string
+	CachedAt    time.Time
 }
 
-func newContentCache(content []byte) *ContentCache {
+func newContentCache(content []byte, content_type string) *ContentCache {
 	return &ContentCache{
-		Content:  content,
-		CachedAt: time.Now(),
+		Content:     content,
+		ContentType: content_type,
+		CachedAt:    time.Now(),
 	}
 }
 
@@ -74,9 +76,14 @@ func (h *AppHandler) AccessLog(r *http.Request, status int) {
 	h.Config.Logger.Println(strings.Join(log_info, " "))
 }
 
-func (h *AppHandler) RenderContent(w http.ResponseWriter, r *http.Request, content []byte) {
+func (h *AppHandler) RenderContent(w http.ResponseWriter, r *http.Request, content []byte, content_type string) {
 	h.AccessLog(r, http.StatusOK)
-	mime_type := http.DetectContentType(content)
+
+	mime_type := content_type
+	if len(mime_type) == 0 {
+		mime_type = http.DetectContentType(content)
+	}
+
 	w.Header().Add("Content-Type", mime_type)
 	w.Write(content)
 }
@@ -125,22 +132,30 @@ func (h *AppHandler) AssetPath(uri string) (string, os.FileInfo, error) {
 	return "", nil, errors.New("File not found: " + asset)
 }
 
-func (h *AppHandler) Convert(src []byte, asset string) []byte {
+func (h *AppHandler) Convert(src []byte, asset string) ([]byte, string) {
 	ext := filepath.Ext(asset)
-	converted_src := h.Converters.Convert(src, ext)
-	h.Caches[asset] = newContentCache(converted_src)
-	return converted_src
+	content, to_ext := h.Converters.Convert(src, ext)
+
+	var content_type string
+	switch to_ext {
+	case ".html":
+		content_type = "text/html; charset=utf-8"
+	case ".css":
+		content_type = "text/css; charset=utf-8"
+	}
+	h.Caches[asset] = newContentCache(content, content_type)
+	return content, content_type
 }
 
-func (h *AppHandler) ContentFromCache(asset string, info os.FileInfo) []byte {
+func (h *AppHandler) ContentFromCache(asset string, info os.FileInfo) ([]byte, string) {
 	content_cache, exist := h.Caches[asset]
 	if exist {
 		if content_cache.CachedAt.Sub(info.ModTime()) > 0 {
-			return content_cache.Content
+			return content_cache.Content, content_cache.ContentType
 		}
 		delete(h.Caches, asset)
 	}
-	return nil
+	return nil, ""
 }
 
 func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -151,9 +166,9 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content := h.ContentFromCache(asset, info)
-	if content != nil {
-		h.RenderContent(w, r, content)
+	cached_content, cached_content_type := h.ContentFromCache(asset, info)
+	if cached_content != nil {
+		h.RenderContent(w, r, cached_content, cached_content_type)
 		return
 	}
 
@@ -172,5 +187,6 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	h.RenderContent(w, r, h.Convert(src, asset))
+	content, content_type := h.Convert(src, asset)
+	h.RenderContent(w, r, content, content_type)
 }

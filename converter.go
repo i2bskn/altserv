@@ -1,10 +1,5 @@
 package main
 
-import (
-	"bytes"
-	"os/exec"
-)
-
 type Converter interface {
 	Convert(src []byte) ([]byte, error)
 	IsAvailable() bool
@@ -37,23 +32,26 @@ func newAvailableConverters() *AvailableConverters {
 
 func allConverters() map[string]Converter {
 	jade := new(JadeConverter)
+	stylus := new(StylusConverter)
+
 	return map[string]Converter{
 		".jade": jade,
+		".styl": stylus,
 	}
 }
 
-func (c *AvailableConverters) Convert(src []byte, t string) []byte {
+func (c *AvailableConverters) Convert(src []byte, t string) ([]byte, string) {
 	if len(t) == 0 {
-		return src
+		return src, ""
 	}
 
 	if converter, exist := c.Converters[t]; exist {
 		if converted, err := converter.Convert(src); err == nil {
-			return converted
+			return converted, converter.ConvertedExt()
 		}
 	}
 
-	return src
+	return src, ""
 }
 
 type HtmlConverter struct{}
@@ -66,40 +64,4 @@ type CssConverter struct{}
 
 func (c CssConverter) ConvertedExt() string {
 	return ".css"
-}
-
-type JadeConverter struct {
-	HtmlConverter
-}
-
-func (c JadeConverter) Convert(src []byte) ([]byte, error) {
-	echo_src := exec.Command("echo", string(src))
-	stdout, err := echo_src.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	var out bytes.Buffer
-	jade := exec.Command("jade")
-	jade.Stdin = stdout
-	jade.Stdout = &out
-
-	cmds := []*exec.Cmd{echo_src, jade}
-	for _, c := range cmds {
-		if err := c.Start(); err != nil {
-			return nil, err
-		}
-	}
-	for _, c := range cmds {
-		if err := c.Wait(); err != nil {
-			return nil, err
-		}
-	}
-
-	return out.Bytes(), nil
-}
-
-func (c JadeConverter) IsAvailable() bool {
-	_, err := exec.Command("jade", "--version").Output()
-	return err == nil
 }
