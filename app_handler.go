@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const ErrorTemplate = `
+const errorTemplate = `
 <!doctype html>
 <html lang="en">
 <head>
@@ -26,13 +26,13 @@ const ErrorTemplate = `
 </html>
 `
 
-type ErrorInfo struct {
+type errorInfo struct {
 	Code    int
 	Message string
 }
 
-func newErrorInfo(code int, message string) *ErrorInfo {
-	return &ErrorInfo{
+func newErrorInfo(code int, message string) *errorInfo {
+	return &errorInfo{
 		Code:    code,
 		Message: message,
 	}
@@ -44,10 +44,10 @@ type ContentCache struct {
 	CachedAt    time.Time
 }
 
-func newContentCache(content []byte, content_type string) *ContentCache {
+func newContentCache(content []byte, contentType string) *ContentCache {
 	return &ContentCache{
 		Content:     content,
-		ContentType: content_type,
+		ContentType: contentType,
 		CachedAt:    time.Now(),
 	}
 }
@@ -67,47 +67,46 @@ func newAppHandler(config *Config) *AppHandler {
 }
 
 func (h *AppHandler) AccessLog(r *http.Request, status int) {
-	log_info := []string{
+	logInfo := []string{
 		r.Method,
 		r.URL.Path,
 		fmt.Sprint(status),
 	}
 
-	h.Config.Logger.Println(strings.Join(log_info, " "))
+	h.Config.Logger.Println(strings.Join(logInfo, " "))
 }
 
-func (h *AppHandler) RenderContent(w http.ResponseWriter, r *http.Request, content []byte, content_type string) {
+func (h *AppHandler) RenderContent(w http.ResponseWriter, r *http.Request, content []byte, contentType string) {
 	h.AccessLog(r, http.StatusOK)
 
-	mime_type := content_type
-	if len(mime_type) == 0 {
-		mime_type = http.DetectContentType(content)
+	if len(contentType) == 0 {
+		contentType = http.DetectContentType(content)
 	}
 
-	w.Header().Add("Content-Type", mime_type)
+	w.Header().Add("Content-Type", contentType)
 	w.Write(content)
 }
 
-func (h *AppHandler) RenderError(w http.ResponseWriter, r *http.Request, i *ErrorInfo) {
+func (h *AppHandler) RenderError(w http.ResponseWriter, r *http.Request, i *errorInfo) {
 	h.AccessLog(r, i.Code)
-	t, _ := template.New("error").Parse(ErrorTemplate)
+	t, _ := template.New("error").Parse(errorTemplate)
 	w.WriteHeader(i.Code)
 	t.Execute(w, i)
 }
 
 func (h *AppHandler) AssetPath(uri string) (string, os.FileInfo, error) {
 	asset := filepath.Join(h.Config.DocumentRoot, uri)
-	asset_info, err := os.Stat(asset)
+	assetInfo, err := os.Stat(asset)
 
 	if err == nil {
-		if asset_info.IsDir() {
+		if assetInfo.IsDir() {
 			asset = filepath.Join(asset, h.Config.Index)
-			asset_info, err = os.Stat(asset)
+			assetInfo, err = os.Stat(asset)
 			if err == nil {
-				return asset, asset_info, nil
+				return asset, assetInfo, nil
 			}
 		} else {
-			return asset, asset_info, nil
+			return asset, assetInfo, nil
 		}
 	}
 
@@ -122,9 +121,9 @@ func (h *AppHandler) AssetPath(uri string) (string, os.FileInfo, error) {
 
 		for _, c := range candidates {
 			candidate := filepath.Join(dir, base+c)
-			asset_info, err = os.Stat(candidate)
+			assetInfo, err = os.Stat(candidate)
 			if err == nil {
-				return candidate, asset_info, nil
+				return candidate, assetInfo, nil
 			}
 		}
 	}
@@ -134,24 +133,24 @@ func (h *AppHandler) AssetPath(uri string) (string, os.FileInfo, error) {
 
 func (h *AppHandler) Convert(src []byte, asset string) ([]byte, string) {
 	ext := filepath.Ext(asset)
-	content, to_ext := h.Converters.Convert(src, ext)
+	content, toExt := h.Converters.Convert(src, ext)
 
-	var content_type string
-	switch to_ext {
+	var contentType string
+	switch toExt {
 	case ".html":
-		content_type = "text/html; charset=utf-8"
+		contentType = "text/html; charset=utf-8"
 	case ".css":
-		content_type = "text/css; charset=utf-8"
+		contentType = "text/css; charset=utf-8"
 	}
-	h.Caches[asset] = newContentCache(content, content_type)
-	return content, content_type
+	h.Caches[asset] = newContentCache(content, contentType)
+	return content, contentType
 }
 
 func (h *AppHandler) ContentFromCache(asset string, info os.FileInfo) ([]byte, string) {
-	content_cache, exist := h.Caches[asset]
+	contentCache, exist := h.Caches[asset]
 	if exist {
-		if content_cache.CachedAt.Sub(info.ModTime()) > 0 {
-			return content_cache.Content, content_cache.ContentType
+		if contentCache.CachedAt.Sub(info.ModTime()) > 0 {
+			return contentCache.Content, contentCache.ContentType
 		}
 		delete(h.Caches, asset)
 	}
@@ -166,9 +165,9 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cached_content, cached_content_type := h.ContentFromCache(asset, info)
-	if cached_content != nil {
-		h.RenderContent(w, r, cached_content, cached_content_type)
+	cachedContent, cachedContentType := h.ContentFromCache(asset, info)
+	if cachedContent != nil {
+		h.RenderContent(w, r, cachedContent, cachedContentType)
 		return
 	}
 
@@ -187,6 +186,6 @@ func (h *AppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	content, content_type := h.Convert(src, asset)
-	h.RenderContent(w, r, content, content_type)
+	content, contentType := h.Convert(src, asset)
+	h.RenderContent(w, r, content, contentType)
 }

@@ -6,15 +6,16 @@ import (
 )
 
 func TestGenerateLogger(t *testing.T) {
-	app_name := "TEST"
-	expected_prefix := "[" + app_name + "] "
-	logger := generateLogger(app_name)
+	appName := "TEST"
+	logger := generateLogger(appName)
 
-	if logger.Prefix() != expected_prefix {
-		t.Fatalf("Expected %v, but %v", expected_prefix, logger.Prefix())
+	expected := "[" + appName + "] "
+	if logger.Prefix() != expected {
+		t.Fatalf("Expected %v, but %v", expected, logger.Prefix())
 	}
 
-	if logger.Flags() != log.LstdFlags {
-		t.Fatalf("Expected %v, but %v", log.LstdFlags, logger.Flags())
+	expected = log.LstdFlags
+	if logger.Flags() != expected {
+		t.Fatalf("Expected %v, but %v", expected, logger.Flags())
 	}
 }

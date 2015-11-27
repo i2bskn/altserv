@@ -6,12 +6,12 @@ import (
 )
 
 type StylusConverter struct {
-	CssConverter
+	CSSConverter
 }
 
 func (c StylusConverter) Convert(src []byte) ([]byte, error) {
-	echo_src := exec.Command("echo", string(src))
-	stdout, err := echo_src.StdoutPipe()
+	echoSrc := exec.Command("echo", string(src))
+	stdout, err := echoSrc.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
@@ -21,7 +21,7 @@ func (c StylusConverter) Convert(src []byte) ([]byte, error) {
 	stylus.Stdin = stdout
 	stylus.Stdout = &out
 
-	cmds := []*exec.Cmd{echo_src, stylus}
+	cmds := []*exec.Cmd{echoSrc, stylus}
 	for _, c := range cmds {
 		if err := c.Start(); err != nil {
 			return nil, err

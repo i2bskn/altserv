@@ -6,12 +6,12 @@ import (
 )
 
 type JadeConverter struct {
-	HtmlConverter
+	HTMLConverter
 }
 
 func (c JadeConverter) Convert(src []byte) ([]byte, error) {
-	echo_src := exec.Command("echo", string(src))
-	stdout, err := echo_src.StdoutPipe()
+	echoSrc := exec.Command("echo", string(src))
+	stdout, err := echoSrc.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
@@ -21,7 +21,7 @@ func (c JadeConverter) Convert(src []byte) ([]byte, error) {
 	jade.Stdin = stdout
 	jade.Stdout = &out
 
-	cmds := []*exec.Cmd{echo_src, jade}
+	cmds := []*exec.Cmd{echoSrc, jade}
 	for _, c := range cmds {
 		if err := c.Start(); err != nil {
 			return nil, err

@@ -23,11 +23,11 @@ type Config struct {
 }
 
 func currentDir() string {
-	current_path, err := filepath.Abs(".")
+	currentPath, err := filepath.Abs(".")
 	if err != nil {
 		panic("Current path can not obtain.")
 	}
-	return current_path
+	return currentPath
 }
 
 func documentRoot() string {

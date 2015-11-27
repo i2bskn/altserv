@@ -13,20 +13,20 @@ type AvailableConverters struct {
 
 func newAvailableConverters() *AvailableConverters {
 	converters := allConverters()
-	for from_ext, c := range converters {
+	for fromExt, c := range converters {
 		if !c.IsAvailable() {
-			delete(converters, from_ext)
+			delete(converters, fromExt)
 		}
 	}
 
-	convert_map := make(map[string][]string)
-	for from_ext, c := range converters {
-		to_ext := c.ConvertedExt()
-		convert_map[to_ext] = append(convert_map[to_ext], from_ext)
+	convertMap := make(map[string][]string)
+	for fromExt, c := range converters {
+		toExt := c.ConvertedExt()
+		convertMap[toExt] = append(convertMap[toExt], fromExt)
 	}
 	return &AvailableConverters{
 		Converters: converters,
-		ConvertMap: convert_map,
+		ConvertMap: convertMap,
 	}
 }
 
@@ -54,14 +54,14 @@ func (c *AvailableConverters) Convert(src []byte, t string) ([]byte, string) {
 	return src, ""
 }
 
-type HtmlConverter struct{}
+type HTMLConverter struct{}
 
-func (c HtmlConverter) ConvertedExt() string {
+func (c HTMLConverter) ConvertedExt() string {
 	return ".html"
 }
 
-type CssConverter struct{}
+type CSSConverter struct{}
 
-func (c CssConverter) ConvertedExt() string {
+func (c CSSConverter) ConvertedExt() string {
 	return ".css"
 }
