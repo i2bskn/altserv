@@ -1,4 +1,4 @@
-package main
+package altserv
 
 import (
 	"errors"
@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/i2bskn/altserv/converter"
 )
 
 const errorTemplate = `
@@ -54,14 +56,14 @@ func newContentCache(content []byte, contentType string) *ContentCache {
 
 type AppHandler struct {
 	Config     *Config
-	Converters *AvailableConverters
+	Converters *converter.AvailableConverters
 	Caches     map[string]*ContentCache
 }
 
-func newAppHandler(config *Config) *AppHandler {
+func NewAppHandler(config *Config) *AppHandler {
 	return &AppHandler{
 		Config:     config,
-		Converters: newAvailableConverters(),
+		Converters: converter.NewAvailableConverters(),
 		Caches:     make(map[string]*ContentCache),
 	}
 }

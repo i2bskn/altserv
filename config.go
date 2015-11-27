@@ -1,4 +1,4 @@
-package main
+package altserv
 
 import (
 	"log"
@@ -36,7 +36,7 @@ func documentRoot() string {
 	return path
 }
 
-func newConfig() *Config {
+func NewConfig() *Config {
 	return &Config{
 		DocumentRoot: documentRoot(),
 		Port:         DefaultPort,

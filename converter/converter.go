@@ -1,4 +1,4 @@
-package main
+package converter
 
 type Converter interface {
 	Convert(src []byte) ([]byte, error)
@@ -11,7 +11,7 @@ type AvailableConverters struct {
 	ConvertMap map[string][]string
 }
 
-func newAvailableConverters() *AvailableConverters {
+func NewAvailableConverters() *AvailableConverters {
 	converters := allConverters()
 	for fromExt, c := range converters {
 		if !c.IsAvailable() {

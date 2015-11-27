@@ -1,4 +1,4 @@
-package main
+package altserv
 
 import (
 	"os"
@@ -33,7 +33,7 @@ func TestDocumentRoot(t *testing.T) {
 }
 
 func TestNewConfig(t *testing.T) {
-	config := newConfig()
+	config := NewConfig()
 
 	if config.DocumentRoot != documentRoot() {
 		t.Fatalf("Expected %v, but %v", documentRoot(), config.DocumentRoot)
