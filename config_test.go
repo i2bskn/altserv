@@ -43,10 +43,6 @@ func TestNewConfig(t *testing.T) {
 		t.Fatalf("Expected %v, but %v", DefaultIndex, config.Index)
 	}
 
-	if config.TmpDir != DefaultTmpDir {
-		t.Fatalf("Expected %v, but %v", DefaultTmpDir, config.TmpDir)
-	}
-
 	if config.Logger == nil {
 		t.Fatalf("Expected %v, but %v", "*log.Logger", nil)
 	}

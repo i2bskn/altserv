@@ -7,18 +7,16 @@ import (
 )
 
 const (
-	AppName       = "AltServ"
-	EnvDocRoot    = "AS_DROOT"
-	DefaultPort   = ":10080"
-	DefaultIndex  = "index.html"
-	DefaultTmpDir = "/tmp/altserv_temporary"
+	AppName      = "AltServ"
+	EnvDocRoot   = "AS_DROOT"
+	DefaultPort  = ":10080"
+	DefaultIndex = "index.html"
 )
 
 type Config struct {
 	DocumentRoot string
 	Port         string
 	Index        string
-	TmpDir       string
 	Logger       *log.Logger
 }
 
@@ -43,7 +41,6 @@ func newConfig() *Config {
 		DocumentRoot: documentRoot(),
 		Port:         DefaultPort,
 		Index:        DefaultIndex,
-		TmpDir:       DefaultTmpDir,
 		Logger:       generateLogger(AppName),
 	}
 }
